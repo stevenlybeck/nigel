@@ -1,0 +1,164 @@
+<!doctype html>
+<script>
+/* get data:
+	http://www.overpass-api.de/api/xapi?map?bbox=lon_min,lat_min,lon_max,lat_max
+	http://www.overpass-api.de/api/xapi?map?bbox=-122.251879,37.850273,-122.241515,37.855144
+*/
+var meta, nodes, nodes_ll = {}, ways, relations, max_lat, min_lat, max_lon, min_lon;
+
+function load() {
+	xhr = new XMLHttpRequest();
+	min_lat = 37.8434409;
+	min_lon = -122.2630218;
+	max_lat = min_lat + 0.015;
+	max_lon = min_lon + 0.015;
+
+//	xhr.open("GET", "oty.xml");
+	xhr.open("GET", "http://www.overpass-api.de/api/xapi?map?bbox=" + min_lon + "," + min_lat + "," + max_lon + "," + max_lat);
+	xhr.onreadystatechange = function() {
+		var i, lat, lon;
+		if (xhr.readyState === 4 && xhr.status === 200) {
+			meta = xhr.responseXML.querySelector('meta');
+			nodes = xhr.responseXML.querySelectorAll('node');
+
+			for (i = 0; i < nodes.length; i++) {
+				lat = parseFloat(nodes[i].getAttribute('lat'));
+				lon = parseFloat(nodes[i].getAttribute('lon'));
+
+/*				if (lat > max_lat || max_lat === undefined) {
+					max_lat = lat;
+				}
+				if (lat < min_lat || min_lat === undefined) {
+					min_lat = lat;
+				}
+				if (lon > max_lon || max_lon === undefined) {
+					max_lon = lon;
+				}
+				if (lon < min_lon || min_lon === undefined) {
+					min_lon = lon;
+				}*/
+				nodes_ll[nodes[i].getAttribute('id')] = [lat, lon];
+			}
+
+			console.log('mmll', max_lat, min_lat, max_lon, min_lon);
+			console.log('NODES', nodes_ll);
+			
+			ways = xhr.responseXML.querySelectorAll('way');
+			//relations = xhr.responseXML.querySelectorAll('relation');
+			var outstanding_ways = 0,
+				missed_noderefs = 0,
+				total_nodrefs = 0;
+			//alert('rendering ' + ways.length + ' ways');
+			for (var i = 0; i < ways.length; i++) {
+				var is_highway = ways[i].querySelector('tag[k="highway"]');
+
+				if (!is_highway) {
+					//console.log('not highway');
+					//continue;
+				}
+				(function() {
+					var way = ways[i];
+					setTimeout(function() {
+						var r = drawWay(way);
+
+						missed_noderefs += r[0];
+						total_nodrefs += r[1];
+
+						if (--outstanding_ways == 0) {
+							console.log('done! - missed ', missed_noderefs, ' out of ', total_nodrefs);
+						}
+					}, 0);
+					outstanding_ways++;
+				})();
+			}
+		}
+	};
+	xhr.send();
+}
+
+function getNode(id) {
+	return xhr.responseXML.querySelector('node[id="' + id + '"]');
+}
+
+function normalizeLatLong(lat, lon) {
+	lat = (parseFloat(lat) - min_lat) / (max_lat - min_lat);
+	lon = (parseFloat(lon) - min_lon) / (max_lon - min_lon);
+	return [lat, lon];
+}
+
+var claimed = {};
+function drawWay(way) {
+	var nodeRefs, i, nodeRef, node, ll, drawCall = 'moveTo', undef=0, wayYs = [], wayXs = [], wayMaxY, wayMaxX, wayMinY, wayMinX;
+	
+	nodeRefs = way.querySelectorAll('nd');
+	//ctx.strokeStyle = ['red', 'green', 'blue', 'brown', 'yellow', 'orange', 'aqua', 'black'].splice(parseInt(Math.random() * 8), 1)[0];
+	ctx.beginPath();
+	for (var i = 0; i < nodeRefs.length; i++) {
+		nodeRef = nodeRefs[i].getAttribute('ref');
+		ll = normalizeLatLong.apply(this, nodes_ll[nodeRef]);
+
+		// some node refs will be outside our data set
+		if (ll === undefined) {
+			undef++;
+			continue;
+		}
+
+		// canvas origin is 0,0 at top-left
+		// lat lon is 0 at left, 0 at bottom
+		var wayX = ll[1] * width;
+		var wayY = (1 - ll[0]) * height;
+
+		wayYs.push(wayY);
+		wayXs.push(wayX);
+
+		ctx[drawCall](wayX, wayY);
+		drawCall = 'lineTo';
+	}
+	//ctx.moveTo(0, 0);
+	ctx.stroke();
+
+	var name = way.querySelector('tag[k="name"]');
+
+	if (name && !claimed[name.getAttribute('v')]) {
+		claimed[name.getAttribute('v')] = true;
+		wayMaxY = Math.max.apply(Math,wayYs);
+		wayMinY = Math.min.apply(Math,wayYs);
+		wayMaxX = Math.max.apply(Math,wayXs);
+		wayMinX = Math.min.apply(Math,wayXs);
+		ctx.fillStyle = "blue";
+    	ctx.font="6pt Helvetica";
+    	console.log(name.getAttribute('v'),'at', wayMinX, wayMinY);
+		ctx.fillText(name.getAttribute('v'), wayMinX, wayMinY);
+	} else if (name && claimed[name.getAttribute('v')]) {
+		console.log('name:', name.getAttribute('v'), 'claimed?', claimed[name.getAttribute('v')]);
+	}
+
+	return [undef, nodeRefs.length];
+
+	//console.log(undef, 'out of', nodeRefs.length, 'references not present');
+}
+// 51.22 - 51.28
+// 17.11 - 17.18
+
+width = 800;
+height = 800;
+
+window.addEventListener('DOMContentLoaded', function() {
+	map = document.createElement('canvas');
+	map.setAttribute('width', width + "px");
+	map.setAttribute('height', height + "px");
+	map.setAttribute('style', "border: 1px solid black");
+	ctx = map.getContext('2d');
+
+	ctx.strokeStyle = "#008800";
+	ctx.fillStyle = "#880000";
+
+	ctx.stroke();
+	//ctx.fill();
+
+
+	document.body.appendChild(map);
+	console.log(ctx);
+	load();
+});
+</script>
