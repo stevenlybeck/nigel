@@ -100,6 +100,7 @@ function drawWay(way) {
 		// some node refs will be outside our data set
 		if (ll === undefined) {
 			undef++;
+			drawCall = 'moveTo';
 			continue;
 		}
 
