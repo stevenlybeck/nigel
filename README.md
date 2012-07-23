@@ -16,6 +16,10 @@ On the roadmap:
 - More-efficient data retrieval. Is there a JavaScript-based geo database?
 - Intermediate data stage for a given view before we begin to draw.
 - Aspect-oriented rendering styles.
-- Priority. (As a rendering filter?)
+- Priority added by style. (As a rendering filter?)
 - Modular rendering so custom code can be loaded by styles.
-- Offline storage.
+- Offline storage
+
+
+By: Steven Lybeck
+Licensed under the MIT license: http://www.opensource.org/licenses/mit-license.php
