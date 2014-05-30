@@ -1,79 +1,260 @@
 <!doctype html>
+<html>
+<head>
 <script>
 /* get data:
+											bbox=left,bottom,right,top
 	http://www.overpass-api.de/api/xapi?map?bbox=lon_min,lat_min,lon_max,lat_max
 	http://www.overpass-api.de/api/xapi?map?bbox=-122.251879,37.850273,-122.241515,37.855144
 */
 var meta, nodes, nodes_ll = {}, ways, relations, max_lat, min_lat, max_lon, min_lon;
 
-function load() {
+function Promise() {
+	var then, resolve, filter,
+		resolved = false,
+		success = false,
+		error = false,
+		successCallbacks = [],
+		errorCallbacks = [];
+	
+	this.then = function(success, err) {
+		if (resolved) {
+			if (success) {
+				setTimeout(success, 0);
+			} else {
+				setTimeout(err, 0);
+			}
+			return;
+		}
+
+		successCallbacks.push(success);
+		errorCallbacks.push(err);
+	};
+
+	this.resolveSuccess = function() {
+		var i,
+			args = Array.prototype.slice.call(arguments);
+
+		if (resolved) {
+			return false;
+		}
+
+		resolved = true;
+		success = true;
+
+		for (i = 0; i < successCallbacks.length; i++) {
+			setTimeout(function() { successCallbacks[0].apply(window, args); }, 0);
+		}
+	};
+
+	this.resolveError = function() {
+		var i;
+
+		if (resolved) {
+			return false;
+		}
+
+		resolved = true;
+		error = true;
+
+		for (i = 0; i < errorCallbacks.length; i++) {
+			setTimeout(errorCallbacks[0], 0);
+		}
+	};
+
+	this.resolved = function() {
+		return resolved;
+	};
+
+	this.success = function() {
+		return success;
+	};
+
+	this.error = function() {
+		return resolvedError;
+	};
+
+	this.getPromiseClient = function() {
+		return { then: this.then };
+	};
+}
+
+function load(lat, lon, w, h) {
+	var loadingPromise = new Promise();
+
 	xhr = new XMLHttpRequest();
-	min_lat = 37.8434409;
-	min_lon = -122.2630218;
-	max_lat = min_lat + 0.015;
-	max_lon = min_lon + 0.015;
+	// 94618 = 37.8437° N, 122.2440°
+	lat = lat || 37.8437;
+	lon = lon || -122.244;
+	w_lat = w || 0.015;
+	w_lon = h || 0.015;
 
-//	xhr.open("GET", "oty.xml");
-	xhr.open("GET", "http://www.overpass-api.de/api/xapi?map?bbox=" + min_lon + "," + min_lat + "," + max_lon + "," + max_lat);
-	xhr.onreadystatechange = function() {
-		var i, lat, lon;
-		if (xhr.readyState === 4 && xhr.status === 200) {
-			meta = xhr.responseXML.querySelector('meta');
-			nodes = xhr.responseXML.querySelectorAll('node');
+	min_lat = lat - (w_lat/2);
+	min_lon = lon - (w_lon/2);
+	max_lat = lat + (w_lat/2);
+	max_lon = lon + (w_lon/2);
 
-			for (i = 0; i < nodes.length; i++) {
-				lat = parseFloat(nodes[i].getAttribute('lat'));
-				lon = parseFloat(nodes[i].getAttribute('lon'));
+	function parseNode(node) {
+		var i, attrs, attrNodes, children, childNodes;
+
+		attrNodes = node.attributes;
+		attrs = {};
+		for (i = 0; attrNodes && i < attrNodes.length; i++) {
+			attrs[attrNodes[i].name] = attrNodes[i].value;
+		}
+
+		childNodes = node.childNodes;
+		children = [];
+		for (i = 0; childNodes && i < childNodes.length; i++) {
+			children[i] = parseNode(childNodes[i]);
+		}
+
+		return {
+			type: node.nodeName,
+			value: node.nodeValue,
+			attrs: attrs,
+			children: children
+		};
+	}
+
+	function parseNodes(nodeList) {
+		var i, nodes = {};
+
+		if (! nodeList.length) {
+			nodeList = [nodeList];
+		}
+
+		for (i = 0; i < nodeList.length; i++) {
+			//lat = parseFloat(nodes[i].getAttribute('lat'));
+			//lon = parseFloat(nodes[i].getAttribute('lon'));
 
 /*				if (lat > max_lat || max_lat === undefined) {
-					max_lat = lat;
-				}
-				if (lat < min_lat || min_lat === undefined) {
-					min_lat = lat;
-				}
-				if (lon > max_lon || max_lon === undefined) {
-					max_lon = lon;
-				}
-				if (lon < min_lon || min_lon === undefined) {
-					min_lon = lon;
-				}*/
-				nodes_ll[nodes[i].getAttribute('id')] = [lat, lon];
+				max_lat = lat;
 			}
+			if (lat < min_lat || min_lat === undefined) {
+				min_lat = lat;
+			}
+			if (lon > max_lon || max_lon === undefined) {
+				max_lon = lon;
+			}
+			if (lon < min_lon || min_lon === undefined) {
+				min_lon = lon;
+			}*/
 
-			console.log('mmll', max_lat, min_lat, max_lon, min_lon);
-			console.log('NODES', nodes_ll);
-			
-			ways = xhr.responseXML.querySelectorAll('way');
-			//relations = xhr.responseXML.querySelectorAll('relation');
-			var outstanding_ways = 0,
-				missed_noderefs = 0,
-				total_nodrefs = 0;
-			//alert('rendering ' + ways.length + ' ways');
-			for (var i = 0; i < ways.length; i++) {
-				var is_highway = ways[i].querySelector('tag[k="highway"]');
 
-				if (!is_highway) {
-					//console.log('not highway');
-					//continue;
-				}
-				(function() {
-					var way = ways[i];
-					setTimeout(function() {
-						var r = drawWay(way);
+			nodes[nodeList[i].getAttribute('id')] = {
+				"coords" : [parseFloat(nodeList[i].getAttribute('lat')), parseFloat(nodeList[i].getAttribute('lon'))],
+				"tags"   : getTags(nodeList[i])
+			};
+		}
+		return nodes;
+	}
 
-						missed_noderefs += r[0];
-						total_nodrefs += r[1];
+	function parseWays(wayList, nodes) {
+		//relations = xhr.responseXML.querySelectorAll('relation');
+		var i,
+			ways = {};
 
-						if (--outstanding_ways == 0) {
-							console.log('done! - missed ', missed_noderefs, ' out of ', total_nodrefs);
+		if (!wayList.length) {
+			wayList = [wayList];
+		}
+
+		for (i = 0; i < wayList.length; i++) {
+			ways[wayList[i].getAttribute('id')] = {
+				"nodes" : (function() {
+					var j, nodeRefs, nodeRef, wayNodes = [];
+					// get a list of all node references for this way
+					nodeRefs = wayList[i].querySelectorAll('nd');
+
+					// iterate thru the list to convert it into references to the js nodes object we created
+					for (j = 0; j < nodeRefs.length; j++) {
+						nodeRef = nodeRefs[j].getAttribute('ref');
+
+						if (nodes[nodeRef]) {
+							wayNodes.push(nodes[nodeRef]);
+						} else {
+							wayNodes.push(undefined);
 						}
-					}, 0);
-					outstanding_ways++;
-				})();
-			}
+					}
+					return wayNodes;
+				})(),
+				"tags" : getTags(wayList[i])
+			};
+		}
+
+		return ways;
+	}
+
+	function parseRelations(relationList, nodes, ways) {
+		var i, relations = {};
+
+		for (i = 0; i < relationList.length; i++) {
+			relations[relationList[i].getAttribute('id')] = {
+				"members" : (function() {
+					var j, memberRefs, memberRef = {}, relationMembers = [];
+
+					memberRefs = relationList[i].querySelectorAll('member');
+
+					for (j = 0; j < memberRefs.length; j++) {
+						memberRef.type = memberRefs[j].getAttribute('type');
+						memberRef.ref = memberRefs[j].getAttribute('ref');
+						memberRef.role = memberRefs[j].getAttribute('role');
+						
+						if (memberRef.type === 'node') {
+							if (nodes[memberRef.ref]) {
+								memberRef.ref = nodes[memberRef.ref];
+							} else {
+								memberRef.ref = undefined;								
+							}
+							relationMembers.push(memberRef);
+						} else if (memberRef.type === 'way') {
+							if (ways[memberRef.ref]) {
+								memberRef.ref = ways[memberRef.ref];
+							} else {
+								memberRef.ref = undefined;								
+							}
+							relationMembers.push(memberRef);
+						}
+					}
+					return relationMembers;
+				})(),
+				"tags" : getTags(relationList[i])
+			};
+		}
+
+		return relations;
+	}
+
+	function getTags(element) {
+		var i,
+			tagNodes = element.querySelectorAll('tag'),
+			tags = {};
+
+		for (i = 0; i < tagNodes.length; i++) {
+			tags[tagNodes[i].getAttribute('k')] = tagNodes[i].getAttribute('v');
+		}
+		return tags;
+	}
+
+//	xhr.open("GET", "oakland.xml");
+	xhr.open("GET", "http://www.overpass-api.de/api/xapi?map?bbox=" + min_lon + "," + min_lat + "," + max_lon + "," + max_lat + "?amenity=school");
+	xhr.onreadystatechange = function() {
+		var i, j, lat, lon;
+		if (xhr.readyState === 4 && xhr.status === 200) {
+
+			meta = xhr.responseXML.querySelector('meta');
+			nodes = nodes_ll = parseNodes(xhr.responseXML.querySelectorAll('node'));
+			ways = parseWays(xhr.responseXML.querySelectorAll('way'), nodes);
+			relations = parseRelations(xhr.responseXML.querySelectorAll('relation'), nodes, ways);
+			//console.log("NODES:", nodes, "WAYS:", ways, "RELATIONS:", relations);
+			loadingPromise.resolveSuccess(nodes, ways, relations);
+			//return;
+			// relations - why?
 		}
 	};
 	xhr.send();
+
+	return loadingPromise.getPromiseClient();
 }
 
 function getNode(id) {
@@ -85,56 +266,75 @@ function normalizeLatLong(lat, lon) {
 	lon = (parseFloat(lon) - min_lon) / (max_lon - min_lon);
 	return [lat, lon];
 }
+function scaleLat(lat) {
+	return (1 - (parseFloat(lat) - min_lat) / (max_lat - min_lat)) * height;
+}
+function scaleLon(lon) {
+	return (parseFloat(lon) - min_lon) / (max_lon - min_lon) * width;
+}
 
 var claimed = {};
 function drawWay(way) {
-	var nodeRefs, i, nodeRef, node, ll, drawCall = 'moveTo', undef=0, wayYs = [], wayXs = [], wayMaxY, wayMaxX, wayMinY, wayMinX;
+	var i, ll, drawCall = 'moveTo', undef=0, wayLats = [], wayLons = [], wayMidLat, wayMidLon;
 	
-	nodeRefs = way.querySelectorAll('nd');
 	//ctx.strokeStyle = ['red', 'green', 'blue', 'brown', 'yellow', 'orange', 'aqua', 'black'].splice(parseInt(Math.random() * 8), 1)[0];
 	ctx.beginPath();
-	for (var i = 0; i < nodeRefs.length; i++) {
-		nodeRef = nodeRefs[i].getAttribute('ref');
-		ll = normalizeLatLong.apply(this, nodes_ll[nodeRef]);
-
-		// some node refs will be outside our data set
-		if (ll === undefined) {
+	for (var i = 0; i < way.nodes.length; i++) {
+		if (way.nodes[i] === undefined) {
 			undef++;
 			drawCall = 'moveTo';
 			continue;
 		}
 
-		// canvas origin is 0,0 at top-left
-		// lat lon is 0 at left, 0 at bottom
-		var wayX = ll[1] * width;
-		var wayY = (1 - ll[0]) * height;
+		try {
+			// canvas origin is 0,0 at top-left
+			// lat lon is 0 at left, 0 at bottom
+			var wayLon = way.nodes[i].coords[1];
+			var wayLat = way.nodes[i].coords[0];
+		} catch(e) {
+			console.log(e.toString(), " - way:", way);
+			break;
+		}
 
-		wayYs.push(wayY);
-		wayXs.push(wayX);
+		wayLats.push(wayLat);
+		wayLons.push(wayLon);
 
-		ctx[drawCall](wayX, wayY);
+		ctx[drawCall](scaleLon(wayLon), scaleLat(wayLat));
 		drawCall = 'lineTo';
 	}
 	//ctx.moveTo(0, 0);
 	ctx.stroke();
 
-	var name = way.querySelector('tag[k="name"]');
+	var name = way.tags.name;
 
-	if (name && !claimed[name.getAttribute('v')]) {
-		claimed[name.getAttribute('v')] = true;
-		wayMaxY = Math.max.apply(Math,wayYs);
-		wayMinY = Math.min.apply(Math,wayYs);
-		wayMaxX = Math.max.apply(Math,wayXs);
-		wayMinX = Math.min.apply(Math,wayXs);
+	/*if (name && !claimed[name]) {
+		claimed[name] = true;*/
+		latLen = (Math.max.apply(Math,wayLats) - Math.min.apply(Math,wayLats));
+		lonLen = (Math.max.apply(Math,wayLons) - Math.min.apply(Math,wayLons));
+		wayMidLat = latLen / 2 + Math.min.apply(Math,wayLats);
+		wayMidLon = lonLen / 2 + Math.min.apply(Math,wayLons);
+
+		rotRad = -1 * Math.asin(
+			latLen												// opposite side
+			/
+			Math.sqrt(latLen * latLen + lonLen * lonLen)		// hypotenuse, thanks pythagoras
+		);
+
+		ctx.translate(scaleLon(wayMidLon), scaleLat(wayMidLat));
+		ctx.rotate(rotRad)
+
 		ctx.fillStyle = "blue";
     	ctx.font="6pt Helvetica";
-    	console.log(name.getAttribute('v'),'at', wayMinX, wayMinY);
-		ctx.fillText(name.getAttribute('v'), wayMinX, wayMinY);
-	} else if (name && claimed[name.getAttribute('v')]) {
-		console.log('name:', name.getAttribute('v'), 'claimed?', claimed[name.getAttribute('v')]);
-	}
+    	console.log(name,'at', wayMidLon, wayMidLat, "rotated", rotRad);
+		ctx.fillText(name, 0, 0);
 
-	return [undef, nodeRefs.length];
+		ctx.rotate(-1 * rotRad);
+		ctx.translate(-1 * scaleLon(wayMidLon), -1 * scaleLat(wayMidLat));
+	/*} else if (name && claimed[name]) {
+		console.log('name:', name, 'claimed?', claimed[name]);
+	}*/
+
+	return [undef, way.nodes.length];
 
 	//console.log(undef, 'out of', nodeRefs.length, 'references not present');
 }
@@ -142,7 +342,7 @@ function drawWay(way) {
 // 17.11 - 17.18
 
 width = 800;
-height = 800;
+height = 500;
 
 window.addEventListener('DOMContentLoaded', function() {
 	map = document.createElement('canvas');
@@ -160,6 +360,114 @@ window.addEventListener('DOMContentLoaded', function() {
 
 	document.body.appendChild(map);
 	console.log(ctx);
-	load();
+	goToMap();
 });
+
+function goToMap(lat, lon, w) {
+	ctx.clearRect(0, 0, width, height);
+	try {
+		place = JSON.parse(window.localStorage.place);
+	} catch(e) {
+		place = [37.8517, -122.2520, 0.005];
+	}
+	place[0] = lat || place[0];
+	place[1] = lon || place[1];
+	place[3] = w || place[3];
+	place[2] = (height / width) * place[3];
+
+	window.localStorage.place = JSON.stringify(place);
+	load.apply(this, place).then(function(nodes, ways, relations) {
+		console.log('mmll', max_lat, min_lat, max_lon, min_lon);
+		console.log("WAYS", ways, "RELS", relations);
+		
+		//relations = xhr.responseXML.querySelectorAll('relation');
+		var outstanding_ways = 0,
+			missed_noderefs = 0,
+			total_nodrefs = 0;
+		//alert('rendering ' + ways.length + ' ways');
+		for (id in ways) {
+			var is_highway;
+
+			if (!ways.hasOwnProperty(id)) continue;
+			
+			is_highway = ways[id].tags.highway;
+
+			if (!is_highway) {
+				//console.log('not highway');
+				continue;
+			}
+			(function() {
+				var way = ways[id];
+				setTimeout(function() {
+					var r = drawWay(way);
+
+					missed_noderefs += r[0];
+					total_nodrefs += r[1];
+
+					if (--outstanding_ways == 0) {
+						console.log('done! - missed ', missed_noderefs, ' out of ', total_nodrefs);
+					}
+				}, 0);
+				outstanding_ways++;
+			})();
+		}
+		console.log('args:', arguments);
+		console.log('done');
+	});
+}
+function translateUp() {
+	var place, lat, h;
+	place = JSON.parse(window.localStorage.place);
+	lat = place[0];
+	lat += place[2] / 2;
+	goToMap(lat);
+}
+function translateDown() {
+	var place, lat, h;
+	place = JSON.parse(window.localStorage.place);
+	lat = place[0];
+	lat -= place[2] / 2;
+	goToMap(lat);	
+}
+function translateLeft() {
+	var place, lon, h;
+	place = JSON.parse(window.localStorage.place);
+	lon = place[1];
+	lon -= place[3] / 2;
+	goToMap(undefined, lon);
+}
+function translateRight() {
+	var place, lon, h;
+	place = JSON.parse(window.localStorage.place);
+	lon = place[1];
+	lon += place[3] / 2;
+	goToMap(undefined, lon);	
+}
+function zoomIn() {
+	var place, w;
+	place = JSON.parse(window.localStorage.place);
+	w = place[2];
+	w *= 0.9;
+	goToMap(undefined, undefined, w);
+}
+function zoomOut() {
+	var place, w;
+	place = JSON.parse(window.localStorage.place);
+	w = place[2];
+	w *= 1.1;
+	goToMap(undefined, undefined, w);
+}
 </script>
+</head>
+<body>
+	<center>
+	<a onclick="translateUp()">Up</a>
+	<br>
+	<a onclick="translateLeft()">Left</a>	<a onclick="translateRight()">Right</a>
+	<br>
+	<a onclick="translateDown()">Down</a>
+	<br>
+	<a onclick="zoomIn()">+</a>	<a onclick="zoomOut()">-</a>
+	</center>
+</body>
+</html>
