@@ -273,10 +273,27 @@ function scaleLon(lon) {
 	return (parseFloat(lon) - min_lon) / (max_lon - min_lon) * width;
 }
 
+var styles = {
+	"secondary": [10],
+	"tertiary": [8, '#900'],
+	"residential": [5],
+	"motorway": [15, '#486'],
+	"motorway_link": [8, '#486'],
+	"service": [2, '#999'],
+	"footway": [2, '#990'],
+	"cycleway": [4, '#f00']
+};
+
 var claimed = {};
 function drawWay(way) {
 	var i, ll, drawCall = 'moveTo', undef=0, wayLats = [], wayLons = [], wayMidLat, wayMidLon;
-	
+
+	console.log('way:', way);
+	if (!styles[way.tags.highway]) {
+		console.log("MISSING", way.tags.highway);
+	}
+
+	ctx.lineCap = "round";
 	//ctx.strokeStyle = ['red', 'green', 'blue', 'brown', 'yellow', 'orange', 'aqua', 'black'].splice(parseInt(Math.random() * 8), 1)[0];
 	ctx.beginPath();
 	for (var i = 0; i < way.nodes.length; i++) {
@@ -302,13 +319,20 @@ function drawWay(way) {
 		ctx[drawCall](scaleLon(wayLon), scaleLat(wayLat));
 		drawCall = 'lineTo';
 	}
+	var oldWidth = ctx.lineWidth;
+
+	ctx.lineWidth = styles[way.tags.highway] && styles[way.tags.highway][0] || 1;
+	ctx.strokeStyle = styles[way.tags.highway] && styles[way.tags.highway][1] || "#008800";
+
 	//ctx.moveTo(0, 0);
 	ctx.stroke();
 
+	ctx.lineWidth = oldWidth;
+
 	var name = way.tags.name;
 
-	/*if (name && !claimed[name]) {
-		claimed[name] = true;*/
+	setTimeout(function() {
+		if (name === undefined) return;
 		latLen = (Math.max.apply(Math,wayLats) - Math.min.apply(Math,wayLats));
 		lonLen = (Math.max.apply(Math,wayLons) - Math.min.apply(Math,wayLons));
 		wayMidLat = latLen / 2 + Math.min.apply(Math,wayLats);
@@ -324,15 +348,13 @@ function drawWay(way) {
 		ctx.rotate(rotRad)
 
 		ctx.fillStyle = "blue";
-    	ctx.font="6pt Helvetica";
-    	console.log(name,'at', wayMidLon, wayMidLat, "rotated", rotRad);
+		ctx.font="6pt Helvetica";
+		console.log(name,'at', wayMidLon, wayMidLat, "rotated", rotRad);
 		ctx.fillText(name, 0, 0);
 
 		ctx.rotate(-1 * rotRad);
 		ctx.translate(-1 * scaleLon(wayMidLon), -1 * scaleLat(wayMidLat));
-	/*} else if (name && claimed[name]) {
-		console.log('name:', name, 'claimed?', claimed[name]);
-	}*/
+	}, 0);
 
 	return [undef, way.nodes.length];
 
@@ -351,7 +373,6 @@ window.addEventListener('DOMContentLoaded', function() {
 	map.setAttribute('style', "border: 1px solid black");
 	ctx = map.getContext('2d');
 
-	ctx.strokeStyle = "#008800";
 	ctx.fillStyle = "#880000";
 
 	ctx.stroke();
