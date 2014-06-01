@@ -79,7 +79,7 @@ function Promise() {
 	};
 }
 
-function load(lat, lon, w, h) {
+function load(lat, lon, w) {
 	var loadingPromise = new Promise();
 
 	xhr = new XMLHttpRequest();
@@ -87,7 +87,7 @@ function load(lat, lon, w, h) {
 	lat = lat || 37.8437;
 	lon = lon || -122.244;
 	w_lat = w || 0.015;
-	w_lon = h || 0.015;
+	w_lon = (width / height) * w_lat;
 
 	min_lat = lat - (w_lat/2);
 	min_lon = lon - (w_lon/2);
@@ -393,8 +393,7 @@ function goToMap(lat, lon, w) {
 	}
 	place[0] = lat || place[0];
 	place[1] = lon || place[1];
-	place[3] = w || place[3];
-	place[2] = (height / width) * place[3];
+	place[2] = w || place[2];
 
 	window.localStorage.place = JSON.stringify(place);
 	load.apply(this, place).then(function(nodes, ways, relations) {
@@ -475,7 +474,7 @@ function zoomOut() {
 	var place, w;
 	place = JSON.parse(window.localStorage.place);
 	w = place[2];
-	w *= 1.1;
+	w *= 1.5;
 	goToMap(undefined, undefined, w);
 }
 </script>
