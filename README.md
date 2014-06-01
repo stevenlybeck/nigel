@@ -19,6 +19,11 @@ On the roadmap:
 - Priority added by style. (As a rendering filter?)
 - Modular rendering so custom code can be loaded by styles.
 - Offline storage
+- Idea:
+-- Create a style language.
+-- "drawing" a map involves compiling the style language and the map data into 
+   canvas API calls
+-- This should be easily applied to other drawing tech as well - SVG, etc...
 
 
 By: Steven Lybeck
