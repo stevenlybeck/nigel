@@ -288,10 +288,7 @@ var claimed = {};
 function drawWay(way) {
 	var i, ll, drawCall = 'moveTo', undef=0, wayLats = [], wayLons = [], wayMidLat, wayMidLon;
 
-	console.log('way:', way);
-	if (!styles[way.tags.highway]) {
-		console.log("MISSING", way.tags.highway);
-	}
+	console.log(way.tags.name, 'way:', way);
 
 	ctx.lineCap = "round";
 	//ctx.strokeStyle = ['red', 'green', 'blue', 'brown', 'yellow', 'orange', 'aqua', 'black'].splice(parseInt(Math.random() * 8), 1)[0];
@@ -321,13 +318,24 @@ function drawWay(way) {
 	}
 	var oldWidth = ctx.lineWidth;
 
-	ctx.lineWidth = styles[way.tags.highway] && styles[way.tags.highway][0] || 1;
-	ctx.strokeStyle = styles[way.tags.highway] && styles[way.tags.highway][1] || "#008800";
+	if (way.tags.highway) {
+		if (!styles[way.tags.highway]) {
+			console.log("MISSING HIGHWAY STYLE FOR", way.tags.highway);
+		}
+
+		ctx.lineWidth = styles[way.tags.highway] && styles[way.tags.highway][0] || 1;
+		ctx.strokeStyle = styles[way.tags.highway] && styles[way.tags.highway][1] || "#008800";
+	}
+	else if (way.tags.leisure) {
+		ctx.fillStyle = "#3c3";
+		ctx.fill();
+	}
 
 	//ctx.moveTo(0, 0);
 	ctx.stroke();
 
 	ctx.lineWidth = oldWidth;
+	ctx.closePath();
 
 	var name = way.tags.name;
 
@@ -406,14 +414,10 @@ function goToMap(lat, lon, w) {
 			total_nodrefs = 0;
 		//alert('rendering ' + ways.length + ' ways');
 		for (id in ways) {
-			var is_highway;
-
 			if (!ways.hasOwnProperty(id)) continue;
 			
-			is_highway = ways[id].tags.highway;
-
-			if (!is_highway) {
-				//console.log('not highway');
+			if (!ways[id].tags.highway && !ways[id].tags.leisure) {
+				console.log('not highway or leisure', JSON.stringify(ways[id].tags));
 				continue;
 			}
 			(function() {
