@@ -456,20 +456,16 @@ function goToMap(lat, lon, w) {
 				console.log('not highway or leisure', JSON.stringify(ways[id].tags));
 				continue;
 			}
-			(function() {
-				var way = ways[id];
-				setTimeout(function() {
-					var r = drawWay(way);
+			var r = drawWay(ways[id]);
 
-					missed_noderefs += r[0];
-					total_nodrefs += r[1];
+			missed_noderefs += r[0];
+			total_nodrefs += r[1];
 
-					if (--outstanding_ways == 0) {
-						console.log('done! - missed ', missed_noderefs, ' out of ', total_nodrefs);
-					}
-				}, 0);
-				outstanding_ways++;
-			})();
+			if (--outstanding_ways == 0) {
+				console.log('done! - missed ', missed_noderefs, ' out of ', total_nodrefs);
+			}
+			
+			outstanding_ways++;
 		}
 
 		drawNames();
