@@ -457,14 +457,14 @@ function translateLeft() {
 	var place, lon, h;
 	place = JSON.parse(window.localStorage.place);
 	lon = place[1];
-	lon -= place[3] / 2;
+	lon -= (width / height) * place[2] / 2;
 	goToMap(undefined, lon);
 }
 function translateRight() {
 	var place, lon, h;
 	place = JSON.parse(window.localStorage.place);
 	lon = place[1];
-	lon += place[3] / 2;
+	lon += (width / height) * place[2] / 2;
 	goToMap(undefined, lon);	
 }
 function zoomIn() {
