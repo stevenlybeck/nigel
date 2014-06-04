@@ -429,7 +429,6 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 
 function goToMap(lat, lon, w) {
-	ctx.clearRect(0, 0, width, height);
 	try {
 		place = JSON.parse(window.localStorage.place);
 	} catch(e) {
@@ -441,6 +440,7 @@ function goToMap(lat, lon, w) {
 
 	window.localStorage.place = JSON.stringify(place);
 	load.apply(this, place).then(function(nodes, ways, relations) {
+		ctx.clearRect(0, 0, width, height);
 		console.log('mmll', max_lat, min_lat, max_lon, min_lon);
 		console.log("WAYS", ways, "RELS", relations);
 		
