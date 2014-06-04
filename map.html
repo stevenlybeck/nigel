@@ -346,7 +346,30 @@ function drawWay(way) {
 		wayMidLat = latLen / 2 + Math.min.apply(Math,wayLats);
 		wayMidLon = lonLen / 2 + Math.min.apply(Math,wayLons);
 
-		rotRad = -1 * Math.asin(
+		if (way.nodes[0].coords[1] - way.nodes[way.nodes.length-1].coords[1] > 0) {
+			// starts right, ends left
+
+			if (way.nodes[0].coords[0] - way.nodes[way.nodes.length-1].coords[0] > 0) {
+				// starts top, ends bottom
+				var invert = -1;
+			} else {
+				// starts bottom, ends top
+				var invert = 1;
+			}
+		} else {
+			// starts left, ends right
+
+			if (way.nodes[0].coords[0] - way.nodes[way.nodes.length-1].coords[0] > 0) {
+				// starts top, ends bottom
+				var invert = 1;
+			} else {
+				// starts bottom, ends top
+				var invert = -1;
+			}
+		}
+		
+
+		rotRad = invert * Math.asin(
 			latLen												// opposite side
 			/
 			Math.sqrt(latLen * latLen + lonLen * lonLen)		// hypotenuse, thanks pythagoras
