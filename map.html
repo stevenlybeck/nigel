@@ -237,7 +237,7 @@ function load(lat, lon, w) {
 	}
 
 //	xhr.open("GET", "oakland.xml");
-	xhr.open("GET", "http://www.overpass-api.de/api/xapi?map?bbox=" + min_lon + "," + min_lat + "," + max_lon + "," + max_lat + "?amenity=school");
+	xhr.open("GET", "http://127.0.0.1:9191/api/xapi?map?bbox=" + min_lon + "," + min_lat + "," + max_lon + "," + max_lat + "?amenity=school");
 	xhr.onreadystatechange = function() {
 		var i, j, lat, lon;
 		if (xhr.readyState === 4 && xhr.status === 200) {
