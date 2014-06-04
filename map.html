@@ -285,6 +285,7 @@ var styles = {
 };
 
 var claimed = {};
+var nameFns = [];
 function drawWay(way) {
 	var i, ll, drawCall = 'moveTo', undef=0, wayLats = [], wayLons = [], wayMidLat, wayMidLon;
 
@@ -339,7 +340,7 @@ function drawWay(way) {
 
 	var name = way.tags.name;
 
-	setTimeout(function() {
+	nameFns.push(function() {
 		if (name === undefined) return;
 		latLen = (Math.max.apply(Math,wayLats) - Math.min.apply(Math,wayLats));
 		lonLen = (Math.max.apply(Math,wayLons) - Math.min.apply(Math,wayLons));
@@ -389,11 +390,19 @@ function drawWay(way) {
 
 		ctx.rotate(-1 * rotRad);
 		ctx.translate(-1 * scaleLon(wayMidLon), -1 * scaleLat(wayMidLat));
-	}, 0);
+	});
 
 	return [undef, way.nodes.length];
 
 	//console.log(undef, 'out of', nodeRefs.length, 'references not present');
+}
+
+function drawNames() {
+	while (fn = nameFns.shift()) {
+		try {
+			fn();
+		} catch(e) {}
+	}
 }
 // 51.22 - 51.28
 // 17.11 - 17.18
@@ -462,6 +471,9 @@ function goToMap(lat, lon, w) {
 				outstanding_ways++;
 			})();
 		}
+
+		drawNames();
+
 		console.log('args:', arguments);
 		console.log('done');
 	});
