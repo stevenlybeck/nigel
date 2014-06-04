@@ -379,9 +379,13 @@ function drawWay(way) {
 		ctx.rotate(rotRad)
 
 		ctx.fillStyle = "blue";
-		ctx.font="6pt Helvetica";
+		ctx.font="9pt Helvetica";
 		console.log(name,'at', wayMidLon, wayMidLat, "rotated", rotRad);
-		ctx.fillText(name, 0, 0);
+		ctx.strokeStyle = "#ddd";
+		ctx.lineWidth = 2;
+		ctx.strokeText(name, 0, 2);
+		ctx.fillText(name, 0, 2);
+		
 
 		ctx.rotate(-1 * rotRad);
 		ctx.translate(-1 * scaleLon(wayMidLon), -1 * scaleLat(wayMidLat));
