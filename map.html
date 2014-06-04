@@ -448,6 +448,8 @@ function goToMap(lat, lon, w) {
 		var outstanding_ways = 0,
 			missed_noderefs = 0,
 			total_nodrefs = 0;
+
+		var timeBeforeDrawing = Date.now();
 		//alert('rendering ' + ways.length + ' ways');
 		for (id in ways) {
 			if (!ways.hasOwnProperty(id)) continue;
@@ -468,8 +470,13 @@ function goToMap(lat, lon, w) {
 			outstanding_ways++;
 		}
 
+		var timeAfterDrawing = Date.now();
+		
 		drawNames();
 
+		var timeAfterNames = Date.now();
+
+		console.log("Drawing time:", timeAfterDrawing - timeBeforeDrawing, "Label time:", timeAfterNames - timeAfterDrawing);
 		console.log('args:', arguments);
 		console.log('done');
 	});
