@@ -28,6 +28,10 @@ On the roadmap:
 -- "drawing" a map involves compiling the style language and the map data into 
    canvas API calls
 -- This should be easily applied to other drawing tech as well - SVG, etc...
+- Maps are distorted at high latitudes
+-- We need to use a real projection and scale the y-axis (lat) to match the x-axis (lon)
+-- Zoom levels should correspond to a geographic distance or height-of-map-in-latitude
+--- Since latitude and distance have a direct correspondance, the width-in-longitude can be determined based on the latitude position
 
 
 By: Steven Lybeck
