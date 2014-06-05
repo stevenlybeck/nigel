@@ -7,6 +7,10 @@ Open Street Map renderer in JavaScript, HTML and Canvas
 This is a JavaScript-based stack intended to chew on OSM's XML data and render 
 beautiful maps directly from a store of the data.
 
+In order to reduce the load on the API service, you must run a local copy of Varnish like this:
+	sudo varnishd -a 127.0.0.1:9191 -b www.overpass-api.de:80 -s file,/tmp,500M
+
+Any other proxy or intermediary will also work.
 
 The initial code commit can process an XML file and render all the ways that 
 sees in the XML file. If ways are named, it draws the name at the upper-left 
