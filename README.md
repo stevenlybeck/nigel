@@ -42,6 +42,7 @@ On the roadmap:
 -- We need to use a real projection and scale the y-axis (lat) to match the x-axis (lon)
 -- Zoom levels should correspond to a geographic distance or height-of-map-in-latitude
 --- Since latitude and distance have a direct correspondance, the width-in-longitude can be determined based on the latitude position
+- Label rotation seems off since updating the map projection code.
 
 
 By: Steven Lybeck
