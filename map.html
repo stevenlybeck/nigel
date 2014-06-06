@@ -79,6 +79,13 @@ function Promise() {
 	};
 }
 
+zoom_filter = {
+	1.5: ["service","footway","cycleway","steps"],
+	2: ["tertiary","residential"],
+	5: ["secondary","primary"],
+	10: ["motorway", "motorway_link"]
+};
+
 function load(lat, lon, zoom) {
 	var loadingPromise = new Promise();
 	var zs;
@@ -238,8 +245,13 @@ function load(lat, lon, zoom) {
 		return tags;
 	}
 
+	highway_types = [];
+	for (i=Math.floor(zoom); i<100; i++) {
+		if (zoom_filter[i]) highway_types = highway_types.concat(zoom_filter[i])
+	}
 //	xhr.open("GET", "oakland.xml");
-	xhr.open("GET", "http://127.0.0.1:9191/api/xapi?map?bbox=" + min_lon + "," + min_lat + "," + max_lon + "," + max_lat + "?amenity=school");
+//	xhr.open("GET", "http://127.0.0.1:9191/api/xapi?map?bbox=" + min_lon + "," + min_lat + "," + max_lon + "," + max_lat + "?amenity=school");
+	xhr.open("GET", "http://127.0.0.1:9191/api/xapi?way\[bbox=" + [min_lon, min_lat, max_lon , max_lat].join(',') + "\]\[highway=" + highway_types.join("|") + "\]");
 	xhr.onreadystatechange = function() {
 		var i, j, lat, lon;
 		if (xhr.readyState === 4 && xhr.status === 200) {
