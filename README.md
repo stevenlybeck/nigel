@@ -43,6 +43,7 @@ On the roadmap:
 -- Zoom levels should correspond to a geographic distance or height-of-map-in-latitude
 --- Since latitude and distance have a direct correspondance, the width-in-longitude can be determined based on the latitude position
 - Label rotation seems off since updating the map projection code.
+- Moving the map doesn't seem to work since updating the map projection code.
 
 
 By: Steven Lybeck
