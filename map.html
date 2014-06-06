@@ -79,20 +79,22 @@ function Promise() {
 	};
 }
 
-function load(lat, lon, w) {
+function load(lat, lon, zoom) {
 	var loadingPromise = new Promise();
+	var zs;
 
 	xhr = new XMLHttpRequest();
 	// 94618 = 37.8437° N, 122.2440°
 	lat = lat || 37.8437;
 	lon = lon || -122.244;
-	w_lat = w || 0.015;
-	w_lon = (width / height) * w_lat;
+	oneKm = oneKmInDegAtLat(lat);
 
-	min_lat = lat - (w_lat/2);
-	min_lon = lon - (w_lon/2);
-	max_lat = lat + (w_lat/2);
-	max_lon = lon + (w_lon/2);
+	zs = zoom * zoom;
+
+	min_lat = lat - (oneKm.lat * zs / 2);
+	min_lon = lon - (oneKm.lon * zs / 2);
+	max_lat = lat + (oneKm.lat * zs / 2);
+	max_lon = lon + (oneKm.lon * zs / 2);
 
 	function parseNode(node) {
 		var i, attrs, attrNodes, children, childNodes;
@@ -266,6 +268,24 @@ function normalizeLatLong(lat, lon) {
 	lon = (parseFloat(lon) - min_lon) / (max_lon - min_lon);
 	return [lat, lon];
 }
+
+function oneKmInDegAtLat(lat) {
+	var polarCircum,
+		earthRadius,
+		radiusAtLat;
+
+	// from http://home.online.no/~sigurdhu/WGS84_Eng.html
+	// polar/meridian/minimum circumferance in km:
+	polarCircum = 40007.863;
+	// mean earth radius in km:
+	earthRadius = 6371.0087714;
+
+	// JS trig functions take radians - lat is coming in degrees
+	radiusAtLat = Math.cos(Math.PI / 180 * lat) * earthRadius;
+
+	return { lat: 180 / polarCircum, lon: 180 / (Math.PI * radiusAtLat) };
+}
+
 function scaleLat(lat) {
 	return (1 - (parseFloat(lat) - min_lat) / (max_lat - min_lat)) * height;
 }
@@ -432,7 +452,7 @@ function goToMap(lat, lon, w) {
 	try {
 		place = JSON.parse(window.localStorage.place);
 	} catch(e) {
-		place = [37.8517, -122.2520, 0.005];
+		place = [37.8517, -122.2520, 1];
 	}
 	place[0] = lat || place[0];
 	place[1] = lon || place[1];

@@ -29,6 +29,16 @@ On the roadmap:
    canvas API calls
 -- This should be easily applied to other drawing tech as well - SVG, etc...
 - Maps are distorted at high latitudes
+-- Test areas:
+--- Longyearbyen, Norway
+---- goToMap(78.2244787,15.6343946, 1)
+---- goToMap(78.2244787,15.6343946, 5)
+--- Puerto Williams, Chile
+---- goToMap(-54.9332995,-67.616, 1)
+---- goToMap(-54.9332995,-67.616, 5)
+--- Quito, Ecuador
+---- goToMap(-0.1865943,-78.4305382, 1)
+---- goToMap(-0.1865943,-78.4305382, 5)
 -- We need to use a real projection and scale the y-axis (lat) to match the x-axis (lon)
 -- Zoom levels should correspond to a geographic distance or height-of-map-in-latitude
 --- Since latitude and distance have a direct correspondance, the width-in-longitude can be determined based on the latitude position
