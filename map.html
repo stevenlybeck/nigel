@@ -373,7 +373,7 @@ function drawWay(way) {
 
 	var name = way.tags.name;
 
-	nameFns.push(function() {
+	(!claimed[name]) && nameFns.push(function() {
 		if (name === undefined) return;
 		latLen = (Math.max.apply(Math,wayLats) - Math.min.apply(Math,wayLats));
 		lonLen = (Math.max.apply(Math,wayLons) - Math.min.apply(Math,wayLons));
@@ -409,6 +409,10 @@ function drawWay(way) {
 			Math.sqrt(latLen * latLen + lonLen * lonLen)		// hypotenuse, thanks pythagoras
 		);
 
+		if (way.tags.leisure) {
+			rotRad = 0;
+		}
+
 		ctx.translate(scaleLon(wayMidLon), scaleLat(wayMidLat));
 		ctx.rotate(rotRad)
 
@@ -424,6 +428,8 @@ function drawWay(way) {
 		ctx.rotate(-1 * rotRad);
 		ctx.translate(-1 * scaleLon(wayMidLon), -1 * scaleLat(wayMidLat));
 	});
+
+	claimed[name] = true;
 
 	return [undef, way.nodes.length];
 
@@ -473,6 +479,7 @@ function goToMap(lat, lon, w) {
 
 	window.localStorage.place = JSON.stringify(place);
 	load.apply(this, place).then(function(nodes, ways, relations) {
+		claimed = {};
 		ctx.clearRect(0, 0, width, height);
 		console.log('mmll', max_lat, min_lat, max_lon, min_lon);
 		console.log("WAYS", ways, "RELS", relations);
