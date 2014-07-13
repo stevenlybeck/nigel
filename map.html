@@ -317,132 +317,335 @@ var styles = {
 	"cycleway": [4, '#f00']
 };
 
-var claimed = {};
-var nameFns = [];
-function drawWay(way) {
-	var i, ll, drawCall = 'moveTo', undef=0, wayLats = [], wayLons = [], wayMidLat, wayMidLon;
+var canvasTech = (function() {
+	var initialized = false;
+	var claimed = {};
+	var nameFns = [];
+	var ctx;
+	var map;
 
-	console.log(way.tags.name, 'way:', way);
+	function initialize() {
+		if (initialized) return;
 
-	ctx.lineCap = "round";
-	//ctx.strokeStyle = ['red', 'green', 'blue', 'brown', 'yellow', 'orange', 'aqua', 'black'].splice(parseInt(Math.random() * 8), 1)[0];
-	ctx.beginPath();
-	for (var i = 0; i < way.nodes.length; i++) {
-		if (way.nodes[i] === undefined) {
-			undef++;
-			drawCall = 'moveTo';
-			continue;
-		}
+		map = document.createElement('canvas');
+		map.setAttribute('width', width + "px");
+		map.setAttribute('height', height + "px");
+		map.setAttribute('style', "border: 1px solid black");
+		ctx = map.getContext('2d');
 
-		try {
-			// canvas origin is 0,0 at top-left
-			// lat lon is 0 at left, 0 at bottom
-			var wayLon = way.nodes[i].coords[1];
-			var wayLat = way.nodes[i].coords[0];
-		} catch(e) {
-			console.log(e.toString(), " - way:", way);
-			break;
-		}
+		ctx.fillStyle = "#880000";
 
-		wayLats.push(wayLat);
-		wayLons.push(wayLon);
+		ctx.stroke();
+		//ctx.fill();
 
-		ctx[drawCall](scaleLon(wayLon), scaleLat(wayLat));
-		drawCall = 'lineTo';
-	}
-	var oldWidth = ctx.lineWidth;
-
-	if (way.tags.highway) {
-		if (!styles[way.tags.highway]) {
-			console.log("MISSING HIGHWAY STYLE FOR", way.tags.highway);
-		}
-
-		ctx.lineWidth = styles[way.tags.highway] && styles[way.tags.highway][0] || 1;
-		ctx.strokeStyle = styles[way.tags.highway] && styles[way.tags.highway][1] || "#008800";
-	}
-	else if (way.tags.leisure) {
-		ctx.fillStyle = "#3c3";
-		ctx.fill();
+		document.body.appendChild(map);
+		console.log(ctx);
+		initialized = true;
 	}
 
-	//ctx.moveTo(0, 0);
-	ctx.stroke();
+	function clear() {
+		initialize();
+		ctx.clearRect(0, 0, width, height);
+	}
 
-	ctx.lineWidth = oldWidth;
-	ctx.closePath();
+	function drawWay(way) {
+		var i, ll, drawCall = 'moveTo', undef=0, wayLats = [], wayLons = [], wayMidLat, wayMidLon;
 
-	var name = way.tags.name;
+		initialize();
 
-	(!claimed[name]) && nameFns.push(function() {
-		if (name === undefined) return;
-		latLen = (Math.max.apply(Math,wayLats) - Math.min.apply(Math,wayLats));
-		lonLen = (Math.max.apply(Math,wayLons) - Math.min.apply(Math,wayLons));
-		wayMidLat = latLen / 2 + Math.min.apply(Math,wayLats);
-		wayMidLon = lonLen / 2 + Math.min.apply(Math,wayLons);
+		console.log(way.tags.name, 'way:', way);
 
-		if (way.nodes[0].coords[1] - way.nodes[way.nodes.length-1].coords[1] > 0) {
-			// starts right, ends left
-
-			if (way.nodes[0].coords[0] - way.nodes[way.nodes.length-1].coords[0] > 0) {
-				// starts top, ends bottom
-				var invert = -1;
-			} else {
-				// starts bottom, ends top
-				var invert = 1;
+		ctx.lineCap = "round";
+		//ctx.strokeStyle = ['red', 'green', 'blue', 'brown', 'yellow', 'orange', 'aqua', 'black'].splice(parseInt(Math.random() * 8), 1)[0];
+		ctx.beginPath();
+		for (var i = 0; i < way.nodes.length; i++) {
+			if (way.nodes[i] === undefined) {
+				undef++;
+				drawCall = 'moveTo';
+				continue;
 			}
-		} else {
-			// starts left, ends right
 
-			if (way.nodes[0].coords[0] - way.nodes[way.nodes.length-1].coords[0] > 0) {
-				// starts top, ends bottom
-				var invert = 1;
-			} else {
-				// starts bottom, ends top
-				var invert = -1;
+			try {
+				// canvas origin is 0,0 at top-left
+				// lat lon is 0 at left, 0 at bottom
+				var wayLon = way.nodes[i].coords[1];
+				var wayLat = way.nodes[i].coords[0];
+			} catch(e) {
+				console.log(e.toString(), " - way:", way);
+				break;
 			}
+
+			wayLats.push(wayLat);
+			wayLons.push(wayLon);
+
+			ctx[drawCall](scaleLon(wayLon), scaleLat(wayLat));
+			drawCall = 'lineTo';
 		}
-		
+		var oldWidth = ctx.lineWidth;
 
-		rotRad = invert * Math.asin(
-			latLen												// opposite side
-			/
-			Math.sqrt(latLen * latLen + lonLen * lonLen)		// hypotenuse, thanks pythagoras
-		);
+		if (way.tags.highway) {
+			if (!styles[way.tags.highway]) {
+				console.log("MISSING HIGHWAY STYLE FOR", way.tags.highway);
+			}
 
-		if (way.tags.leisure) {
-			rotRad = 0;
+			ctx.lineWidth = styles[way.tags.highway] && styles[way.tags.highway][0] || 1;
+			ctx.strokeStyle = styles[way.tags.highway] && styles[way.tags.highway][1] || "#008800";
+		}
+		else if (way.tags.leisure) {
+			ctx.fillStyle = "#3c3";
+			ctx.fill();
 		}
 
-		ctx.translate(scaleLon(wayMidLon), scaleLat(wayMidLat));
-		ctx.rotate(rotRad)
+		//ctx.moveTo(0, 0);
+		ctx.stroke();
 
-		ctx.fillStyle = "blue";
-		ctx.font="9pt Helvetica";
-		console.log(name,'at', wayMidLon, wayMidLat, "rotated", rotRad);
-		ctx.strokeStyle = "#ddd";
-		ctx.lineWidth = 2;
-		ctx.strokeText(name, 0, 2);
-		ctx.fillText(name, 0, 2);
-		
+		ctx.lineWidth = oldWidth;
+		ctx.closePath();
 
-		ctx.rotate(-1 * rotRad);
-		ctx.translate(-1 * scaleLon(wayMidLon), -1 * scaleLat(wayMidLat));
-	});
+		var name = way.tags.name;
 
-	claimed[name] = true;
+		(!claimed[name]) && nameFns.push(function() {
+			if (name === undefined) return;
+			latLen = (Math.max.apply(Math,wayLats) - Math.min.apply(Math,wayLats));
+			lonLen = (Math.max.apply(Math,wayLons) - Math.min.apply(Math,wayLons));
+			wayMidLat = latLen / 2 + Math.min.apply(Math,wayLats);
+			wayMidLon = lonLen / 2 + Math.min.apply(Math,wayLons);
 
-	return [undef, way.nodes.length];
+			if (way.nodes[0].coords[1] - way.nodes[way.nodes.length-1].coords[1] > 0) {
+				// starts right, ends left
 
-	//console.log(undef, 'out of', nodeRefs.length, 'references not present');
-}
+				if (way.nodes[0].coords[0] - way.nodes[way.nodes.length-1].coords[0] > 0) {
+					// starts top, ends bottom
+					var invert = -1;
+				} else {
+					// starts bottom, ends top
+					var invert = 1;
+				}
+			} else {
+				// starts left, ends right
 
-function drawNames() {
-	while (fn = nameFns.shift()) {
-		try {
-			fn();
-		} catch(e) {}
+				if (way.nodes[0].coords[0] - way.nodes[way.nodes.length-1].coords[0] > 0) {
+					// starts top, ends bottom
+					var invert = 1;
+				} else {
+					// starts bottom, ends top
+					var invert = -1;
+				}
+			}
+			
+
+			rotRad = invert * Math.asin(
+				latLen												// opposite side
+				/
+				Math.sqrt(latLen * latLen + lonLen * lonLen)		// hypotenuse, thanks pythagoras
+			);
+
+			if (way.tags.leisure) {
+				rotRad = 0;
+			}
+
+			ctx.translate(scaleLon(wayMidLon), scaleLat(wayMidLat));
+			ctx.rotate(rotRad)
+
+			ctx.fillStyle = "blue";
+			ctx.font="9pt Helvetica";
+			console.log(name,'at', wayMidLon, wayMidLat, "rotated", rotRad);
+			ctx.strokeStyle = "#ddd";
+			ctx.lineWidth = 2;
+			ctx.strokeText(name, 0, 2);
+			ctx.fillText(name, 0, 2);
+			
+
+			ctx.rotate(-1 * rotRad);
+			ctx.translate(-1 * scaleLon(wayMidLon), -1 * scaleLat(wayMidLat));
+		});
+
+		claimed[name] = true;
+
+		return [undef, way.nodes.length];
+
+		//console.log(undef, 'out of', nodeRefs.length, 'references not present');
 	}
-}
+
+	function drawNames() {
+		while (fn = nameFns.shift()) {
+			try {
+				fn();
+			} catch(e) {}
+		}
+	}
+
+	return { clear: clear, drawWay: drawWay, drawNames: drawNames };
+})();
+
+var svgTech = (function() {
+	var initialized = false;
+	var claimed = {};
+	var nameFns = [];
+	var ctx;
+	var map;
+	var moveTo = "M";
+	var lineTo = "L";
+
+	function initialize() {
+		if (initialized) return;
+
+		map = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+		map.setAttribute("version", "1.1");
+		map.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+		map.style.width = width + "px";
+		map.style.height = height + "px";
+		map.style.border = "1px solid black";
+
+		document.body.appendChild(map);
+		console.log(ctx);
+		initialized = true;
+	}
+
+	function clear() {
+		initialize();
+		while (map.firstChild) { map.removeChild(map.firstChild) };
+	}
+
+	function drawWay(way) {
+		var i, ll, drawCall = moveTo, undef=0, wayLats = [], wayLons = [], wayMidLat, wayMidLon;
+
+		var pathData, path;
+
+		initialize();
+
+		console.log(way.tags.name, 'way:', way);
+
+		//ctx.strokeStyle = ['red', 'green', 'blue', 'brown', 'yellow', 'orange', 'aqua', 'black'].splice(parseInt(Math.random() * 8), 1)[0];
+		pathData = "";
+		path = document.createElementNS("http://www.w3.org/2000/svg", 'path');
+
+		for (var i = 0; i < way.nodes.length; i++) {
+			if (way.nodes[i] === undefined) {
+				undef++;
+				drawCall = moveTo;
+				continue;
+			}
+
+			try {
+				// canvas origin is 0,0 at top-left
+				// lat lon is 0 at left, 0 at bottom
+				var wayLon = way.nodes[i].coords[1];
+				var wayLat = way.nodes[i].coords[0];
+			} catch(e) {
+				console.log(e.toString(), " - way:", way);
+				break;
+			}
+
+			wayLats.push(wayLat);
+			wayLons.push(wayLon);
+
+			pathData += [drawCall, scaleLon(wayLon), scaleLat(wayLat), ""].join(" ");
+			drawCall = lineTo;
+		}
+
+		path.setAttribute("d", pathData);
+
+		if (way.tags.highway) {
+			if (!styles[way.tags.highway]) {
+				console.log("MISSING HIGHWAY STYLE FOR", way.tags.highway);
+			}
+
+			path.setAttribute("stroke-width", styles[way.tags.highway] && styles[way.tags.highway][0] || 1);
+			path.setAttribute("stroke", styles[way.tags.highway] && styles[way.tags.highway][1] || "#008800");
+			path.setAttribute("fill", "none");
+			path.setAttribute("data-name", way.tags.name);
+		}
+		else if (way.tags.leisure) {
+			path.setAttribute("fill", "#3c3");
+		}
+
+		var waycolor = path.getAttribute("stroke");
+		path.addEventListener("mouseover", function() {
+			path.setAttribute("stroke", "rgba(200, 100, 100, 0.5)");
+		});
+		path.addEventListener("mouseout", function() {
+			path.setAttribute("stroke", waycolor);
+		});
+
+		// done preparing, draw it!
+		map.appendChild(path);
+
+		var name = way.tags.name;
+
+		(!claimed[name]) && nameFns.push(function() {
+			if (name === undefined) return;
+			latLen = (Math.max.apply(Math,wayLats) - Math.min.apply(Math,wayLats));
+			lonLen = (Math.max.apply(Math,wayLons) - Math.min.apply(Math,wayLons));
+			wayMidLat = latLen / 2 + Math.min.apply(Math,wayLats);
+			wayMidLon = lonLen / 2 + Math.min.apply(Math,wayLons);
+
+			if (way.nodes[0].coords[1] - way.nodes[way.nodes.length-1].coords[1] > 0) {
+				// starts right, ends left
+
+				if (way.nodes[0].coords[0] - way.nodes[way.nodes.length-1].coords[0] > 0) {
+					// starts top, ends bottom
+					var invert = -1;
+				} else {
+					// starts bottom, ends top
+					var invert = 1;
+				}
+			} else {
+				// starts left, ends right
+
+				if (way.nodes[0].coords[0] - way.nodes[way.nodes.length-1].coords[0] > 0) {
+					// starts top, ends bottom
+					var invert = 1;
+				} else {
+					// starts bottom, ends top
+					var invert = -1;
+				}
+			}
+			
+
+			rotRad = invert * Math.asin(
+				latLen												// opposite side
+				/
+				Math.sqrt(latLen * latLen + lonLen * lonLen)		// hypotenuse, thanks pythagoras
+			);
+
+			if (way.tags.leisure) {
+				rotRad = 0;
+			}
+
+			ctx.translate(scaleLon(wayMidLon), scaleLat(wayMidLat));
+			ctx.rotate(rotRad)
+
+			ctx.fillStyle = "blue";
+			ctx.font="9pt Helvetica";
+			console.log(name,'at', wayMidLon, wayMidLat, "rotated", rotRad);
+			ctx.strokeStyle = "#ddd";
+			ctx.lineWidth = 2;
+			ctx.strokeText(name, 0, 2);
+			ctx.fillText(name, 0, 2);
+			
+
+			ctx.rotate(-1 * rotRad);
+			ctx.translate(-1 * scaleLon(wayMidLon), -1 * scaleLat(wayMidLat));
+		});
+
+		claimed[name] = true;
+
+		return [undef, way.nodes.length];
+
+		//console.log(undef, 'out of', nodeRefs.length, 'references not present');
+	}
+
+	function drawNames() {
+		while (fn = nameFns.shift()) {
+			try {
+				//fn();
+			} catch(e) {}
+		}
+	}
+
+	return { clear: clear, drawWay: drawWay, drawNames: drawNames };
+})();
 // 51.22 - 51.28
 // 17.11 - 17.18
 
@@ -450,24 +653,11 @@ width = 800;
 height = 500;
 
 window.addEventListener('DOMContentLoaded', function() {
-	map = document.createElement('canvas');
-	map.setAttribute('width', width + "px");
-	map.setAttribute('height', height + "px");
-	map.setAttribute('style', "border: 1px solid black");
-	ctx = map.getContext('2d');
-
-	ctx.fillStyle = "#880000";
-
-	ctx.stroke();
-	//ctx.fill();
-
-
-	document.body.appendChild(map);
-	console.log(ctx);
 	goToMap();
 });
 
-function goToMap(lat, lon, w) {
+function goToMap(lat, lon, w, tech) {
+	tech = tech || defaultTech;
 	try {
 		place = JSON.parse(window.localStorage.place);
 	} catch(e) {
@@ -480,7 +670,8 @@ function goToMap(lat, lon, w) {
 	window.localStorage.place = JSON.stringify(place);
 	load.apply(this, place).then(function(nodes, ways, relations) {
 		claimed = {};
-		ctx.clearRect(0, 0, width, height);
+		tech.clear();
+
 		console.log('mmll', max_lat, min_lat, max_lon, min_lon);
 		console.log("WAYS", ways, "RELS", relations);
 		
@@ -498,7 +689,7 @@ function goToMap(lat, lon, w) {
 				console.log('not highway or leisure', JSON.stringify(ways[id].tags));
 				continue;
 			}
-			var r = drawWay(ways[id]);
+			var r = tech.drawWay(ways[id]);
 
 			missed_noderefs += r[0];
 			total_nodrefs += r[1];
@@ -512,7 +703,7 @@ function goToMap(lat, lon, w) {
 
 		var timeAfterDrawing = Date.now();
 		
-		drawNames();
+		tech.drawNames();
 
 		var timeAfterNames = Date.now();
 
@@ -562,6 +753,14 @@ function zoomOut() {
 	w = place[2];
 	w *= 1.5;
 	goToMap(undefined, undefined, w);
+}
+
+var defaultTech;
+if (document.location.hash === "#canvas") {
+	defaultTech = canvasTech;
+}
+else {
+	defaultTech = svgTech;
 }
 </script>
 </head>
